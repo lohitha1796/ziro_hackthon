@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Inline empty icon: avoids a pointless /favicon.ico 404 in the demo's network log. -->
+<link rel="icon" href="data:," />
+<title>SQF Agent - Security Questionnaire Filler (Ziro.Digital Hackathon 2026)</title>
+<link rel="stylesheet" href="assets/styles.css?v=1.1.6" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">SQF</span>
+    <div class="brand-text">
+      <strong>Security Questionnaire Filler</strong>
+      <span class="muted">Evidence-gated answer agent &middot; v<span id="app-version">-</span></span>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button type="button" class="pill link" id="mode-pill" data-action="goto" data-tab="settings" title="Reasoning mode - open the settings that control it">deterministic</button>
+    <button type="button" class="pill link" id="run-pill" data-action="goto" data-tab="agent" title="Current run - open the agent run">no run</button>
+    <button class="btn" id="btn-run-agent" data-action="run-agent">Run agent</button>
+    <button class="btn ghost" id="btn-export" data-action="export-evidence">Export evidence</button>
+    <button class="btn ghost danger" id="btn-reset" data-action="reset" title="Clear stored state and reseed the mock portal">Reset demo</button>
+  </div>
+</header>
+
+<div class="demo-banner" role="note">
+  <span class="tag">DEMO</span>
+  <span><b>Synthetic data only.</b> This build is not connected to any real customer system.</span>
+  <span class="sep-dot">&middot;</span>
+  <span>Questionnaire <code>QNR-2026-0417</code></span>
+  <span class="sep-dot">&middot;</span>
+  <span>Vendor <code>Northstar Cloud Services (fictional)</code></span>
+  <span class="sep-dot">&middot;</span>
+  <span id="demo-state-summary">no run yet</span>
+</div>
+
+<div class="loading" id="loading" hidden aria-live="polite">
+  <span class="spinner" aria-hidden="true"></span>
+  <span id="loading-text">Working&hellip;</span>
+</div>
+
+<nav class="tabs" id="tabs" role="tablist" aria-label="Sections">
+  <button class="tab active" role="tab" aria-selected="true" data-tab="overview">Dashboard</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="questionnaire">Questionnaire <span class="badge" id="badge-questionnaire">0</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="sources">Policies</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="evidence">Evidence</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="approvals">Review queue <span class="badge" id="badge-approvals">0</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="portal">Mock portal</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="agent">Agent run</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="results">Results <span class="badge" id="badge-results">0</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="tests">Test cases <span class="badge" id="badge-tests">0</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="audit">Audit log</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+</nav>
+
+<main id="main">
+
+  <!-- ============================ DASHBOARD ============================ -->
+  <section class="panel tab-panel active" id="panel-overview" aria-label="Dashboard">
+    <div class="card">
+      <div class="row between">
+        <div>
+          <h1>Security Questionnaire Filler</h1>
+          <p class="muted" style="margin:0">Answer vendor security questionnaires using approved policy evidence.</p>
+        </div>
+        <div class="row">
+          <button class="btn" data-action="run-agent">Run agent</button>
+          <button class="btn ghost" data-action="goto" data-tab="questionnaire">View questionnaire</button>
+          <button class="btn ghost" data-action="goto" data-tab="approvals">Review answers</button>
+          <button class="btn ghost" data-action="goto" data-tab="sources">View policies</button>
+          <button class="btn ghost" data-action="goto" data-tab="tests">Test cases</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h2 style="margin-bottom:10px">Result dashboard</h2>
+      <div class="grid four" id="dash-kpis"></div>
+      <div id="dash-progress"></div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h2>Review queue and evidence coverage</h2>
+        <div id="dash-review"></div>
+      </div>
+      <div class="card">
+        <h2>Verification status</h2>
+        <div id="dash-verify"></div>
+        <h3>Portal</h3>
+        <div id="dash-portal"></div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h2>Official test cases</h2>
+        <p class="muted small">Each case runs the real pipeline in a sandboxed copy of the state. Expected and actual results are compared; the record keeps the evidence.</p>
+        <div id="overview-tc-body"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-action="run-tests">Run all 4 test cases</button>
+          <button class="btn ghost" data-action="goto" data-tab="tests">Open test case runner</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Recent activity</h2>
+        <div id="dash-activity" class="log scroll"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="row between">
+        <h2>Official compliance checklist</h2>
+        <span class="pill" id="checklist-score">-</span>
+      </div>
+      <p class="muted small">Every computed row is derived from the current application state, not hard-coded. Rows marked <b>design</b> are properties of the implementation that cannot be observed from a single session.</p>
+      <div class="checklist" id="dash-checklist"></div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h2>Dataset and scope</h2>
+        <div class="grid three" id="overview-dataset"></div>
+        <p class="muted small" style="margin-top:10px">
+          Sources are retrieved and scored; the authority gate then rejects anything that is not active and
+          authoritative. Superseded, marketing and prior-response documents are kept in the trail so their
+          rejection is auditable.
+        </p>
+      </div>
+      <div class="card">
+        <h2>How to demonstrate</h2>
+        <ol class="steps">
+          <li>Open <b>Mock portal</b> and show the open questionnaire (15 questions) plus the 2023 prior submission.</li>
+          <li>Click <b>Run agent</b>: steps 01-03 collect, plan and retrieve. Nothing is written.</li>
+          <li>Open <b>Review queue</b>: proposed answers with citations, withheld items and reviewer tasks.</li>
+          <li>Approve or edit the items you agree with, then <b>Submit approved to portal</b> (step 04).</li>
+          <li>Click <b>Verify against portal</b> (step 05), then read <b>Results</b> (step 06).</li>
+          <li>Open <b>Test cases</b> and run TC1-TC4, then export the evidence bundle.</li>
+        </ol>
+        <div class="callout info">
+          <b>Test harness note.</b> Inside a test run the human approval is <em>simulated</em> by a
+          clearly-labelled test reviewer that only ever approves items the agent already marked as answered.
+          Real runs always require a named human reviewer, and the portal is never written before approval.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= QUESTIONNAIRE ========================= -->
+  <section class="panel tab-panel" id="panel-questionnaire" aria-label="Questionnaire">
+    <div class="card">
+      <div class="row between">
+        <div>
+          <h2 id="qnr-title">Questionnaire</h2>
+          <p class="muted small" id="qnr-subtitle" style="margin:0"></p>
+        </div>
+        <div class="row">
+          <button class="btn" data-action="run-agent">Run agent</button>
+          <button class="btn ghost" data-action="goto" data-tab="results">Open results</button>
+        </div>
+      </div>
+      <div class="filterbar" style="margin-top:12px">
+        <div class="segmented" id="qnr-view" role="group" aria-label="Result filter">
+          <button class="active" data-filter-view="all">All</button>
+          <button data-filter-view="answered">Answered</button>
+          <button data-filter-view="unknown">Unknown</button>
+          <button data-filter-view="needs_review">Needs review</button>
+          <button data-filter-view="approved">Approved</button>
+          <button data-filter-view="verified">Verified</button>
+          <button data-filter-view="failed">Failed</button>
+        </div>
+        <input class="input" id="qnr-search" type="search" placeholder="Search questions" aria-label="Search questions" style="min-width:220px" />
+        <select class="input" id="qnr-category" aria-label="Category filter"><option value="">All categories</option></select>
+        <select class="input" id="qnr-policy" aria-label="Policy filter"><option value="">All policies</option></select>
+        <select class="input" id="qnr-status" aria-label="Status filter">
+          <option value="">All statuses</option>
+          <option value="not_analysed">Not analysed</option>
+          <option value="answered">Answered</option>
+          <option value="unknown">Unknown</option>
+          <option value="needs_review">Needs review</option>
+        </select>
+        <button class="btn ghost sm" data-action="clear-filters">Clear filters</button>
+      </div>
+      <div id="qnr-summary" class="summary-grid" style="margin-bottom:10px"></div>
+      <div id="qnr-body"></div>
+    </div>
+  </section>
+
+  <!-- ============================ POLICIES ============================ -->
+  <section class="panel tab-panel" id="panel-sources" aria-label="Policy library">
+    <div class="card">
+      <h2>Policy library</h2>
+      <p class="muted small">Only <b>authoritative + active</b> sources may back an answer. Superseded, draft and non-authoritative documents are still retrieved and scored so the rejection is visible in the evidence trail. Expand a row to inspect its content.</p>
+      <div id="sources-summary" class="summary-grid" style="margin-bottom:10px"></div>
+      <div id="sources-body"></div>
+    </div>
+    <div class="card">
+      <h2>Certification registry</h2>
+      <p class="muted small">The single source of truth for certification claims. A certification that is not <code>held</code> here may never be claimed, regardless of what other documents say.</p>
+      <div id="certs-body"></div>
+    </div>
+  </section>
+
+  <!-- ============================ EVIDENCE ============================ -->
+  <section class="panel tab-panel" id="panel-evidence" aria-label="Evidence">
+    <div class="card">
+      <div class="row between">
+        <h2>Evidence coverage</h2>
+        <button type="button" class="pill link" id="evidence-verified" data-action="goto" data-tab="results" data-focus="results-verification" title="Open the verification detail">not verified</button>
+      </div>
+      <div id="evidence-summary" class="summary-grid" style="margin-bottom:10px"></div>
+      <div id="evidence-body"></div>
+    </div>
+    <div class="card">
+      <h2>Sources considered and rejected</h2>
+      <p class="muted small">Every candidate source that scored against a question but failed the authority gate, with the machine-readable reason. A superseded document is never authoritative even when it is a closer match.</p>
+      <div id="evidence-rejected"></div>
+    </div>
+  </section>
+
+  <!-- ============================ REVIEW QUEUE ============================ -->
+  <section class="panel tab-panel" id="panel-approvals" aria-label="Review queue">
+    <div class="card">
+      <div class="row between">
+        <h2>Review queue</h2>
+        <div class="row">
+          <label class="inline">Reviewer <input id="reviewer-name" class="input" value="Dana Whitfield (Security Reviewer)" size="34" /></label>
+          <button class="btn ghost" id="btn-approve-cited" data-action="approve-all-cited" title="Approves every cited answer that is still awaiting a decision. Items you have already rejected are left untouched.">Approve all cited answers</button>
+          <button class="btn ghost" id="btn-clear-decisions" data-action="clear-decisions">Clear decisions</button>
+        </div>
+      </div>
+      <div class="callout warn">
+        Nothing is written to the portal until a named reviewer approves an individual item. Items marked
+        <b>unknown</b> or <b>needs review</b> carry no citation and are never approvable: they stay open with a
+        reviewer task. Editing an answer changes what will be written, and verification re-checks the edited text.
+        A bulk <b>Approve all cited answers</b> only fills in items that are still undecided - it never overwrites
+        an answer you have explicitly rejected.
+      </div>
+      <div id="approvals-body" class="item-list empty">Run the agent first.</div>
+    </div>
+  </section>
+
+  <!-- ============================ MOCK PORTAL ============================ -->
+  <section class="panel tab-panel" id="panel-portal" aria-label="Mock questionnaire portal">
+    <div class="portal-chrome">
+      <span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span>
+      <span class="url" id="portal-url">https://mock-portal.ziro.local/vendor/questionnaire</span>
+      <button type="button" class="pill small link" id="portal-status" data-action="goto" data-tab="portal" data-focus="portal-log" title="Show the portal write log">loading</button>
+    </div>
+    <div id="portal-body"></div>
+  </section>
+
+  <!-- ============================ AGENT RUN ============================ -->
+  <section class="panel tab-panel" id="panel-agent" aria-label="Agent run">
+    <div class="grid two wide-left">
+      <div class="card">
+        <div class="row between">
+          <h2>Pipeline</h2>
+          <div class="row">
+            <button class="btn" id="btn-run-agent-2" data-action="run-agent">Run agent</button>
+            <button class="btn" id="btn-submit-approved" data-action="submit-approved" disabled>Submit approved to portal</button>
+            <button class="btn ghost" id="btn-verify" data-action="verify" disabled>Verify against portal</button>
+          </div>
+        </div>
+        <div id="agent-progress" class="muted small" style="margin:6px 0"></div>
+        <div id="agent-timeline" class="timeline empty">No run yet. Click <b>Run agent</b>.</div>
+      </div>
+      <div class="card">
+        <h2>Run summary</h2>
+        <div id="agent-summary" class="summary-grid muted">-</div>
+        <h3>Decision log</h3>
+        <div id="agent-log" class="scroll log"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Proposed answers</h2>
+      <p class="muted small">Status is the agent's determination. Action state is what has actually happened. Rows with no citation cannot be submitted.</p>
+      <div id="agent-items" class="item-list empty">No proposals yet.</div>
+    </div>
+  </section>
+
+  <!-- ============================ RESULTS ============================ -->
+  <section class="panel tab-panel" id="panel-results" aria-label="Results">
+    <div class="card">
+      <div class="row between">
+        <h2>Result view</h2>
+        <div class="row">
+          <button type="button" class="pill link" id="results-verified" data-action="goto" data-tab="results" data-focus="results-verification" title="Open the verification detail">not verified</button>
+          <button class="btn ghost" id="btn-export-results" data-action="export-results">Export result JSON</button>
+        </div>
+      </div>
+      <div class="grid four" id="results-counts"></div>
+    </div>
+    <div class="grid three" id="results-buckets"></div>
+    <div class="card">
+      <h2>Verification detail</h2>
+      <p class="muted small">One row per question as evaluated by the verifier. <b>Pending</b> means the item is intentionally open - unknown, needs review, awaiting a decision, or rejected - not that verification failed.</p>
+      <div id="results-verification"></div>
+    </div>
+  </section>
+
+  <!-- ============================ TEST CASES ============================ -->
+  <section class="panel tab-panel" id="panel-tests" aria-label="Test cases">
+    <div class="card">
+      <div class="row between">
+        <h2>Official test cases (TC1-TC4)</h2>
+        <div class="row">
+          <button class="btn" id="btn-run-tests" data-action="run-tests">Run all test cases</button>
+          <button class="btn ghost" data-action="export-tests-json">Export runs JSON</button>
+          <button class="btn ghost" data-action="export-tests-md">Export evidence Markdown</button>
+        </div>
+      </div>
+      <p class="muted small">
+        Each scenario is executed in a freshly seeded environment with a simulated reviewer. The record keeps the
+        scenario input, the expected result, the actual result, the evidence trail and an explicit note about any
+        difference. <b>Run test</b> re-runs a single case.
+      </p>
+      <div id="tests-summary" class="summary-grid">Not run yet.</div>
+    </div>
+    <div id="tests-body"></div>
+  </section>
+
+  <!-- ============================ AUDIT ============================ -->
+  <section class="panel tab-panel" id="panel-audit" aria-label="Audit log">
+    <div class="card">
+      <div class="row between">
+        <h2>Audit log</h2>
+        <div class="row">
+          <button type="button" class="pill link" id="audit-count" data-action="goto" data-tab="audit" data-focus="audit-body" title="Show the audit log">0 events</button>
+          <button class="btn ghost" id="btn-export-audit" data-action="export-audit">Export audit JSON</button>
+        </div>
+      </div>
+      <p class="muted small">Every event carries an event id, a timestamp, the actor, the action and, where a state change occurred, the previous and new state.</p>
+      <div id="audit-body" class="scroll log tall"></div>
+    </div>
+  </section>
+
+  <!-- ============================ SETTINGS ============================ -->
+  <section class="panel tab-panel" id="panel-settings" aria-label="Settings">
+    <div class="grid two">
+      <div class="card">
+        <h2>Reasoning mode</h2>
+        <p class="muted small">The deterministic engine is always available. The LLM is used only to classify the question, rerank candidate passages and phrase the answer from supplied facts. Every model response is validated before use.</p>
+        <label class="inline">Provider
+          <select id="set-llm-mode" class="input">
+            <option value="deterministic">deterministic (offline)</option>
+            <option value="openai-compatible">openai-compatible HTTP</option>
+          </select>
+        </label>
+        <label class="inline">Base URL <input id="set-llm-url" class="input" size="34" placeholder="https://api.openai.com/v1" /></label>
+        <label class="inline">Model <input id="set-llm-model" class="input" size="24" placeholder="gpt-4o-mini" /></label>
+        <label class="inline">API key <input id="set-llm-key" class="input" size="34" type="password" placeholder="sk-... (kept in this browser only)" /></label>
+        <p class="muted small">The key is stored in <code>localStorage</code> under your own browser profile, is never written to the audit log or to exported evidence, and is never required for the demo. For a deployed build put the key on a server-side proxy instead.</p>
+        <div class="row">
+          <button class="btn" id="btn-save-settings" data-action="save-settings">Save</button>
+          <button class="btn ghost" id="btn-test-llm" data-action="test-llm">Test connection</button>
+        </div>
+        <div id="llm-status" class="muted small" aria-live="polite">&nbsp;</div>
+      </div>
+      <div class="card">
+        <h2>Thresholds and transport</h2>
+        <label class="inline">Minimum evidence score <input id="set-min-score" class="input" type="number" step="0.01" min="0" max="1" size="6" /></label>
+        <label class="inline">Conflict window <input id="set-conflict" class="input" type="number" step="0.01" min="0" max="1" size="6" /></label>
+        <label class="inline">Transport
+          <select id="set-transport" class="input">
+            <option value="mock">mock (offline, default)</option>
+            <option value="http">http (real fetch, served builds)</option>
+          </select>
+        </label>
+        <label class="inline"><input type="checkbox" id="set-latency" /> simulate network latency</label>
+        <p class="muted small">Switching transport to <code>http</code> makes the same pipeline call real URLs - useful if you deploy the mock portal as a service. It is off by default so the demo works from the file system.</p>
+        <h3>State</h3>
+        <div class="row">
+          <button class="btn ghost" data-action="export-state">Export state</button>
+          <label class="btn ghost">Import state <input type="file" id="file-import-state" hidden /></label>
+          <button class="btn ghost danger" data-action="reset">Reset demo data</button>
+        </div>
+        <h3>Keyboard</h3>
+        <p class="muted small"><code>1..9</code> switch tabs, <code>r</code> run agent, <code>v</code> verify, <code>t</code> run test cases.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row between">
+        <h2>Mock portal API self-test</h2>
+        <button class="btn" data-action="run-api-tests">Run API self-test</button>
+      </div>
+      <p class="muted small">Exercises every mock portal endpoint - valid request, missing field, not found, duplicate write and success - and reports the HTTP status returned. Writes are made against a sandboxed copy of the state and are discarded afterwards.</p>
+      <div id="api-test-body"></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="drawer" class="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+  <div class="drawer-head">
+    <strong id="drawer-title">Detail</strong>
+    <button class="btn ghost" id="drawer-close" data-action="drawer-close">Close</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<script src="src/data/dataset.js?v=1.1.6"></script>
+<script src="src/core/util.js?v=1.1.6"></script>
+<script src="src/core/store.js?v=1.1.6"></script>
+<script src="src/core/transport.js?v=1.1.6"></script>
+<script src="src/core/retrieval.js?v=1.1.6"></script>
+<script src="src/core/llm.js?v=1.1.6"></script>
+<script src="src/core/verifier.js?v=1.1.6"></script>
+<script src="src/core/agent.js?v=1.1.6"></script>
+<script src="src/core/scenarios.js?v=1.1.6"></script>
+<script src="src/ui/ui.js?v=1.1.6"></script>
+</body>
+</html>
